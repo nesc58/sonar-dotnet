@@ -572,5 +572,16 @@ Tag(""End"");";
             var check = new ConditionEvaluatedTestCheck(x => x.State[x.Operation].HasConstraint(BoolConstraint.True) ? null : x.State);
             SETestContext.CreateCS(code, check).Validator.ValidateTagOrder("Begin", "End");
         }
+
+        [TestMethod]
+        public void Branching_Exception()
+        {
+            const string code = @"
+var tag = ""Before"";
+Tag(""If""); // invocation can throw
+tag = ""After"";";
+            var validator = SETestContext.CreateCS(code).Validator;
+            ValidateHasOnlyNoExceptionAndUnknownException(validator.ExitStates);
+        }
     }
 }

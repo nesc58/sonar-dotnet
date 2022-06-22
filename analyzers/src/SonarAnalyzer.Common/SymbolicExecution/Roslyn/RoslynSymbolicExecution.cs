@@ -207,13 +207,22 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
 
         private IEnumerable<ExplodedNode> ExceptionSuccessors(ExplodedNode node, ExceptionState exception)
         {
-            if (exception is not null && node.Block.EnclosingRegion(ControlFlowRegionKind.Try) is { } tryRegion)
+            if (exception is not null)
             {
                 // We're jumping out of the outer statement => We need to reset operation states.
                 var state = node.State.ResetOperations().SetException(exception);
-                foreach (var catchOrFinally in tryRegion.EnclosingRegion.NestedRegions.Where(x => x.Kind != ControlFlowRegionKind.Try))
+
+                if (node.Block.EnclosingRegion(ControlFlowRegionKind.Try) is { } tryRegion)
                 {
-                    yield return new(cfg.Blocks[catchOrFinally.FirstBlockOrdinal], state, null);
+                    foreach (var catchOrFinally in tryRegion.EnclosingRegion.NestedRegions.Where(x => x.Kind != ControlFlowRegionKind.Try))
+                    {
+                        yield return new(cfg.Blocks[catchOrFinally.FirstBlockOrdinal], state, null);
+                    }
+                }
+                else
+                {
+                    // If an exception is thrown outside of a try block, the execution stops.
+                    yield return new(cfg.ExitBlock, state, null);
                 }
             }
         }

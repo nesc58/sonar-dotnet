@@ -1192,7 +1192,10 @@ tag = ""End"";";
                 .And.ContainSingle(x => HasSystemException(x));
 
         private static void ValidateHasOnlyNoExceptionAndUnknownException(ValidatorTestCheck validator, string stateName) =>
-            validator.TagStates(stateName).Should().HaveCount(2)
+            ValidateHasOnlyNoExceptionAndUnknownException(validator.TagStates(stateName));
+
+        private static void ValidateHasOnlyNoExceptionAndUnknownException(IEnumerable<ProgramState> states) =>
+            states.Should().HaveCount(2)
                 .And.ContainSingle(x => HasNoException(x))
                 .And.ContainSingle(x => HasUnknownException(x));
 
