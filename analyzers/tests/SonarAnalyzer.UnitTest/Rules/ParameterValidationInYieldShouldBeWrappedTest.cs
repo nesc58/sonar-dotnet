@@ -18,6 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+using Microsoft.CodeAnalysis.CSharp;
 using SonarAnalyzer.Rules.CSharp;
 
 namespace SonarAnalyzer.UnitTest.Rules
@@ -25,8 +26,21 @@ namespace SonarAnalyzer.UnitTest.Rules
     [TestClass]
     public class ParameterValidationInYieldShouldBeWrappedTest
     {
+        private readonly VerifierBuilder builder = new VerifierBuilder().AddAnalyzer(() => new ParameterValidationInYieldShouldBeWrapped());
+
         [TestMethod]
         public void ParameterValidationInYieldShouldBeWrapped() =>
-            OldVerifier.VerifyAnalyzer(@"TestCases\ParameterValidationInYieldShouldBeWrapped.cs", new ParameterValidationInYieldShouldBeWrapped());
+            builder
+                .AddPaths("ParameterValidationInYieldShouldBeWrapped.cs")
+                .Verify();
+
+#if NET
+        [TestMethod]
+        public void ParameterValidationInYieldShouldBeWrapped_CSharp10() =>
+            builder
+                .AddPaths("ParameterValidationInYieldShouldBeWrapped.CSharp10.cs")
+                .WithLanguageVersion(LanguageVersion.CSharp10)
+                .Verify();
+#endif
     }
 }
