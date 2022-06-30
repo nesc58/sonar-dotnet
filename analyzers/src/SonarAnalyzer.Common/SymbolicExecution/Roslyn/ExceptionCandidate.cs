@@ -31,6 +31,15 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
         public ExceptionCandidate(Compilation compilation) =>
             typeCatalog = new TypeCatalog(compilation);
 
+        public static bool IsMonitorExit(IInvocationOperationWrapper invocation) =>
+            invocation.TargetMethod.Is(KnownType.System_Threading_Monitor, "Exit");
+
+        public static bool IsLockRelease(IInvocationOperationWrapper invocation) =>
+            invocation.TargetMethod.IsAny(KnownType.System_Threading_ReaderWriterLock, "ReleaseLock", "ReleaseReaderLock", "ReleaseWriterLock")
+            || invocation.TargetMethod.IsAny(KnownType.System_Threading_ReaderWriterLockSlim, "ExitReadLock", "ExitWriteLock", "ExitUpgradeableReadLock")
+            || invocation.TargetMethod.Is(KnownType.System_Threading_Mutex, "ReleaseMutex")
+            || invocation.TargetMethod.Is(KnownType.System_Threading_SpinLock, "Exit");
+
         public ExceptionState FromOperation(IOperationWrapperSonar operation) =>
             operation.Instance.Kind switch
             {
@@ -42,7 +51,7 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
                 OperationKindEx.DynamicObjectCreation => ExceptionState.UnknownException,  // The raised exception is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException for which we don't have access.
                 OperationKindEx.EventReference => FromOperation(IMemberReferenceOperationWrapper.FromOperation(operation.Instance)),
                 OperationKindEx.FieldReference => FromOperation(IMemberReferenceOperationWrapper.FromOperation(operation.Instance)),
-                OperationKindEx.Invocation => ExceptionState.UnknownException,
+                OperationKindEx.Invocation => FromOperation(IInvocationOperationWrapper.FromOperation(operation.Instance)),
                 OperationKindEx.MethodReference => FromOperation(IMemberReferenceOperationWrapper.FromOperation(operation.Instance)),
                 OperationKindEx.ObjectCreation => operation.Instance.Type.DerivesFrom(KnownType.System_Exception) ? null : ExceptionState.UnknownException, // ToDo: Filter out exception constructors assuming that usually they do not throw.
                 OperationKindEx.PropertyReference => FromOperation(IMemberReferenceOperationWrapper.FromOperation(operation.Instance)),
@@ -64,5 +73,11 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
                        ? null
                        : new ExceptionState(typeCatalog.SystemInvalidCastException);
         }
+
+        private ExceptionState FromOperation(IInvocationOperationWrapper invocation) =>
+            IsMonitorExit(invocation)
+            || IsLockRelease(invocation)
+            ? null
+            : ExceptionState.UnknownException;
     }
 }
