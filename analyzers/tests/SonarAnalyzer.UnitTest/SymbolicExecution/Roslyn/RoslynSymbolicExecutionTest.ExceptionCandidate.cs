@@ -571,5 +571,26 @@ End Module";
             validator.ValidateTagOrder("BeforeTry", "InTry");
             validator.ExitStates.Should().HaveCount(0);
         }
+
+        [TestMethod]
+        public void ExceptionCandidate_Excluded_DoNotThrow()
+        {
+            const string code = @"
+var tag = ""BeforeTry"";
+try
+{
+    tag = ""InTry"";
+    System.Threading.Monitor.Exit(tag);    // This invocation would normally throw, but it is excluded from throwing
+}
+catch
+{
+    tag = ""UnreachableInCatch"";
+}
+tag = ""AfterCatch"";
+";
+            var validator = SETestContext.CreateCS(code).Validator;
+            validator.ValidateTagOrder("BeforeTry", "InTry", /*FIXME: Should not be here*/"UnreachableInCatch", "AfterCatch");
+            validator.ExitStates.Should().HaveCount(1).And.ContainSingle(x => HasNoException(x));
+        }
     }
 }
