@@ -34,6 +34,9 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
         public static bool IsMonitorExit(IInvocationOperationWrapper invocation) =>
             invocation.TargetMethod.Is(KnownType.System_Threading_Monitor, "Exit");
 
+        public static bool IsMonitorIsEntered(IInvocationOperationWrapper invocation) =>
+            invocation.TargetMethod.Is(KnownType.System_Threading_Monitor, "IsEntered");
+
         public static bool IsLockRelease(IInvocationOperationWrapper invocation) =>
             invocation.TargetMethod.IsAny(KnownType.System_Threading_ReaderWriterLock, "ReleaseLock", "ReleaseReaderLock", "ReleaseWriterLock")
             || invocation.TargetMethod.IsAny(KnownType.System_Threading_ReaderWriterLockSlim, "ExitReadLock", "ExitWriteLock", "ExitUpgradeableReadLock")
@@ -59,7 +62,7 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
             };
 
         private ExceptionState FromOperation(IMemberReferenceOperationWrapper reference) =>
-            reference.IsStaticOrThis() ? null : new ExceptionState(typeCatalog.SystemNullReferenceException);
+            reference.IsStaticOrThis() || IsLockType(reference.Instance.Type) ? null : new ExceptionState(typeCatalog.SystemNullReferenceException);
 
         private ExceptionState ConversionExceptionCandidate(IOperationWrapperSonar operation)
         {
@@ -76,8 +79,13 @@ namespace SonarAnalyzer.SymbolicExecution.Roslyn
 
         private ExceptionState FromOperation(IInvocationOperationWrapper invocation) =>
             IsMonitorExit(invocation)
+            || IsMonitorIsEntered(invocation)
             || IsLockRelease(invocation)
             ? null
             : ExceptionState.UnknownException;
+
+        private static bool IsLockType(ITypeSymbol type) =>
+            // ToDo: MMF-2229 should remove this explicit list with NullConstraint based decision if the property access can throw or not
+            type.IsAny(KnownType.System_Threading_ReaderWriterLock, KnownType.System_Threading_ReaderWriterLockSlim);
     }
 }

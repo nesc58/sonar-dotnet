@@ -52,7 +52,8 @@ Tag(""AfterFinally"");";
         public void Finally_Nested_ExitingTwoFinallyOnSameBranch()
         {
             const string code = @"
-Tag(""BeforeOuterTry"");
+var tag = ""BeforeOuterTry"";
+var value = false;
 try
 {
     Tag(""InOuterTry"");
@@ -62,17 +63,17 @@ try
     }
     finally
     {
-        true.ToString();    // Put some operations in the way
+        value = true;    // Put some operations in the way
         Tag(""InInnerFinally"");
     }
 }
 finally
 {
-    true.ToString();    // Put some operations in the way
-    true.ToString();
-    Tag(""InOuterFinally"");
+    value = true;    // Put some operations in the way
+    value = true;
+    tag = ""InOuterFinally"";
 }
-Tag(""AfterOuterFinally"");";
+tag = ""AfterOuterFinally"";";
             var validator = SETestContext.CreateCS(code).Validator;
             validator.ValidateTagOrder(
                 "BeforeOuterTry",
