@@ -38,6 +38,7 @@ namespace SonarAnalyzer.UnitTest.TestFramework.SymbolicExecution
         private readonly ControlFlowGraph cfg;
         private readonly List<SymbolicContext> postProcessed = new();
         private readonly List<(string Name, SymbolicContext Context)> tags = new();
+        private readonly Dictionary<string, HashSet<ISymbol>> symbols = new();
         private int executionCompletedCount;
 
         public List<ProgramState> ExitStates { get; } = new();
@@ -60,14 +61,14 @@ namespace SonarAnalyzer.UnitTest.TestFramework.SymbolicExecution
         public void Validate(string operation, Action<SymbolicContext> action) =>
             action(postProcessed.Single(x => TestHelper.Serialize(x.Operation) == operation));
 
-        public void ValidateTag(string tag, Action<SymbolicValue> action) =>
-            action(TagValues(tag).Single());
+        public void ValidateTag(string tag, string symbolName, Action<SymbolicValue> action) =>
+            action(TagValues(tag, symbolName).Single());
 
         public ProgramState[] TagStates(string tag) =>
             tags.Where(x => x.Name == tag).Select(x => x.Context.State).ToArray();
 
-        public SymbolicValue[] TagValues(string tag) =>
-            tags.Where(x => x.Name == tag).Select(x => TagValue(x.Context)).ToArray();
+        public SymbolicValue[] TagValues(string tag, string symbolName) =>
+            tags.Where(x => x.Name == tag).Select(x => TagValue(x.Context, symbolName)).ToArray();
 
         public void ValidateExitReachCount(int expected) =>
             ExitStates.Should().HaveCount(expected);
@@ -98,6 +99,10 @@ namespace SonarAnalyzer.UnitTest.TestFramework.SymbolicExecution
             {
                 AddTagName(invocation.Arguments.First().Value.ConstantValue, context);
             }
+            else if (context.Operation.Instance.TrackedSymbol() is { } symbol)
+            {
+                symbols.GetOrAdd(symbol.Name, x => new(SymbolEqualityComparer.Default)).Add(symbol);
+            }
             return context.State;
         }
 
@@ -107,21 +112,11 @@ namespace SonarAnalyzer.UnitTest.TestFramework.SymbolicExecution
             tags.Add(((string)tagName.Value, context));
         }
 
-        private static ISymbol Symbol(IOperation operation) =>
-            operation.TrackedSymbol() ?? operation switch
-            {
-                _ when IFieldReferenceOperationWrapper.IsInstance(operation) => IFieldReferenceOperationWrapper.FromOperation(operation).Member,
-                _ when IPropertyReferenceOperationWrapper.IsInstance(operation) => IPropertyReferenceOperationWrapper.FromOperation(operation).Member,
-                _ when IArrayElementReferenceOperationWrapper.IsInstance(operation) => IArrayElementReferenceOperationWrapper.FromOperation(operation).ArrayReference.TrackedSymbol(),
-                _ => null
-            };
-
-        private static SymbolicValue TagValue(SymbolicContext context)
+        private SymbolicValue TagValue(SymbolicContext context, string symbolName)
         {
-            var invocation = (IInvocationOperation)context.Operation.Instance;
-            invocation.Arguments.Should().HaveCount(2, "Asserted argument is expected in Tag(..) invocation");
-            var symbol = Symbol(((IConversionOperation)invocation.Arguments[1].Value).Operand);
-            return context.State[symbol];
+            symbols.TryGetValue(symbolName, out var capturedSymbols).Should().BeTrue($"Requested symbol '{symbolName}' should exist in the code snippet");
+            capturedSymbols.Should().HaveCount(1, $"there should be exactly one symbol with name '{symbolName}' in the code snippet");
+            return context.State[capturedSymbols.Single()];
         }
     }
 }

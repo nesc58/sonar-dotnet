@@ -35,8 +35,8 @@ var value = isTrue switch
     true => true,
     false => false
 };
-Tag(""Value"", value);";
-            SETestContext.CreateCS(code).Validator.ValidateTag("Value", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
+var tag = ""End""";
+            SETestContext.CreateCS(code).Validator.ValidateTag("End", "value", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
         }
 
         [TestMethod]
@@ -49,8 +49,8 @@ var value = (isTrue == true) switch
     true => true,
     false => false
 };
-Tag(""Value"", value);";
-            SETestContext.CreateCS(code).Validator.ValidateTag("Value", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
+var tag = ""End""";
+            SETestContext.CreateCS(code).Validator.ValidateTag("End", "value", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
         }
 
         [TestMethod]
@@ -63,8 +63,8 @@ var value = isFalse switch
     true => true,
     false => false
 };
-Tag(""Value"", value);";
-            SETestContext.CreateCS(code).Validator.ValidateTag("Value", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+var tag = ""End"";";
+            SETestContext.CreateCS(code).Validator.ValidateTag("End", "value", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
         }
 
         [TestMethod]
@@ -76,8 +76,8 @@ var value = boolParameter switch
     true => true,
     false => false
 };
-Tag(""Value"", value);";
-            SETestContext.CreateCS(code).Validator.TagValues("Value").Should()
+var tag = ""End"";";
+            SETestContext.CreateCS(code).Validator.TagValues("End", "value").Should()
                 .HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.False));
@@ -92,9 +92,9 @@ var value = boolParameter switch
     true => true,
     false => false
 };
-Tag(""Value"", value);";
+var tag = ""End"";";
             var check = new PostProcessTestCheck(x => x.Operation.Instance.Kind == OperationKind.ParameterReference ? x.SetOperationConstraint(DummyConstraint.Dummy) : x.State);
-            SETestContext.CreateCS(code, check).Validator.TagValues("Value").Should()
+            SETestContext.CreateCS(code, check).Validator.TagValues("End", "value").Should()
                 .HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.False));
@@ -110,9 +110,9 @@ var value = arg switch
     null => true,
     _ => false
 };
-Tag(""Value"", value);";
+var tag = ""End"";";
             var check = new PostProcessTestCheck(x => x.Operation.Instance.Kind == OperationKind.ParameterReference ? x.SetOperationConstraint(DummyConstraint.Dummy) : x.State);
-            SETestContext.CreateCS(code, ", object arg", check).Validator.TagValues("Value").Should()
+            SETestContext.CreateCS(code, ", object arg", check).Validator.TagValues("End", "value").Should()
                 .HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.False));

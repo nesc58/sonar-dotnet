@@ -88,10 +88,10 @@ namespace SonarAnalyzer.UnitTest.SymbolicExecution.Roslyn
             const string code = @"
 public void Main(bool arg = true)
 {
-    Tag(""Arg"", arg);
+    var tag = ""End"";
 }
 private void Tag(string name, object arg) { }";
-            SETestContext.CreateCSMethod(code).Validator.ValidateTag("Arg", x => x.Should().BeNull());
+            SETestContext.CreateCSMethod(code).Validator.ValidateTag("End", "Arg", x => x.Should().BeNull());
         }
 
         private static BoolConstraint GetConstraint(bool value) =>

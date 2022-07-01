@@ -38,10 +38,10 @@ var value = 42;
     value.ToString(); // Add another constraint to 'value'
     value--;
 }}
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code, ", int[] items", new AddConstraintOnInvocationCheck(), new PreserveTestCheck("value")).Validator;
             validator.ValidateExitReachCount(2);
-            validator.TagValues("End").Should().HaveCount(2)
+            validator.TagValues("End", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x == null)
                 .And.ContainSingle(x => x != null && x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True));
         }
@@ -56,14 +56,14 @@ foreach (var i in items)
     value.ToString(); // Add another constraint to 'value'
     value--;
 }}
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code, ", int[] items", new AddConstraintOnInvocationCheck(), new PreserveTestCheck("value")).Validator;
             // In the case of foreach, there are implicit method calls that in the current implementation can throw:
             // - IEnumerable<>.GetEnumerator()
             // - System.Collections.IEnumerator.MoveNext()
             // - System.IDisposable.Dispose()
             validator.ValidateExitReachCount(6);                // foreach produces implicit TryFinally region where it can throw and changes the flow
-            validator.TagValues("End").Should().HaveCount(2)    // These Exception flows do not reach the Tag("End") line
+            validator.TagValues("End", "value").Should().HaveCount(2)    // These Exception flows do not reach the Tag("End") line
                 .And.ContainSingle(x => x == null)
                 .And.ContainSingle(x => x != null && x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True));
         }
@@ -105,10 +105,10 @@ do
     value.ToString(); // Add another constraint to 'value'
     value--;
 }} while (value > 0);
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code, new AddConstraintOnInvocationCheck()).Validator;
             validator.ValidateExitReachCount(1);
-            validator.TagValues("End").Should().HaveCount(2)
+            validator.TagValues("End", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.True) && !x.HasConstraint(DummyConstraint.Dummy));
         }
@@ -123,11 +123,11 @@ var value = 42;
 {loop}
 {{
     value.ToString(); // Add another constraint to 'value'
-    Tag(""Inside"", value);
+    var tag = ""Inside"";
 }}";
             var validator = SETestContext.CreateCS(code, new AddConstraintOnInvocationCheck()).Validator;
             validator.ValidateExitReachCount(0);                    // There's no branch to 'Exit' block, or the exist is never reached
-            validator.TagValues("Inside").Should().HaveCount(2)
+            validator.TagValues("Inside", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.True) && !x.HasConstraint(DummyConstraint.Dummy));
         }
@@ -139,11 +139,11 @@ var value = 42;
 var value = 42;
 Start:
 value.ToString(); // Add another constraint to 'value'
-Tag(""Inside"", value);
+var tag = ""Inside"";
 goto Start;";
             var validator = SETestContext.CreateCS(code, new AddConstraintOnInvocationCheck()).Validator;
             validator.ValidateExitReachCount(0);                    // There's no branch to 'Exit' block
-            validator.TagValues("Inside").Should().HaveCount(2)
+            validator.TagValues("Inside", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.True) && !x.HasConstraint(DummyConstraint.Dummy));
         }
@@ -160,10 +160,10 @@ if (value > 0)
 {
     goto Start;
 }
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code, new AddConstraintOnInvocationCheck()).Validator;
             validator.ValidateExitReachCount(1);
-            validator.TagValues("End").Should().HaveCount(2)
+            validator.TagValues("End", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && !x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.True) && !x.HasConstraint(DummyConstraint.Dummy));
         }

@@ -20,6 +20,7 @@
 
 using Microsoft.CodeAnalysis.Operations;
 using SonarAnalyzer.SymbolicExecution.Constraints;
+using SonarAnalyzer.SymbolicExecution.Roslyn;
 using SonarAnalyzer.UnitTest.TestFramework.SymbolicExecution;
 using StyleCop.Analyzers.Lightup;
 
@@ -30,71 +31,71 @@ namespace SonarAnalyzer.UnitTest.SymbolicExecution.Roslyn
         [TestMethod]
         public void SimpleAssignment_ToLocalVariable_FromLiteral()
         {
-            var validator = SETestContext.CreateCS(@"var a = true; Tag(""a"", a);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"var a = true; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: true", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
             validator.Validate("SimpleAssignment: a = true (Implicit)", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
             validator.Validate("SimpleAssignment: a = true (Implicit)", x => x.State[((ISimpleAssignmentOperation)x.Operation.Instance).Target].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("a", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", "a", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void SimpleAssignment_ToLocalVariable_FromTrackedSymbol()
         {
-            var validator = SETestContext.CreateCS(@"bool a = true, b; b = a; Tag(""b"", b);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"bool a = true, b; b = a; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: true", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
             validator.Validate("SimpleAssignment: b = a", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
             validator.Validate("SimpleAssignment: b = a", x => x.State[((ISimpleAssignmentOperation)x.Operation.Instance).Target].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", "b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void SimpleAssignment_ToLocalVariable_FromTrackedSymbol_Chained()
         {
-            var validator = SETestContext.CreateCS(@"bool a = true, b, c; c = b = a; Tag(""c"", c);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"bool a = true, b, c; c = b = a; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: true", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
             validator.Validate("SimpleAssignment: c = b = a", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
             validator.Validate("SimpleAssignment: c = b = a", x => x.State[((ISimpleAssignmentOperation)x.Operation.Instance).Target].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("c", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", "c", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void SimpleAssignment_ToParameter_FromLiteral()
         {
-            var validator = SETestContext.CreateCS(@"boolParameter = true; Tag(""boolParameter"", boolParameter);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"boolParameter = true; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: true", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
             validator.Validate("SimpleAssignment: boolParameter = true", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
             validator.Validate("SimpleAssignment: boolParameter = true", x => x.State[((ISimpleAssignmentOperation)x.Operation.Instance).Target].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("boolParameter", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", "boolParameter", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void SimpleAssignment_ToLocalVariable_FromTrackedSymbol_CS()
         {
             var setter = new PreProcessTestCheck(OperationKind.ParameterReference, x => x.SetOperationConstraint(DummyConstraint.Dummy));
-            var validator = SETestContext.CreateCS(@"var b = boolParameter; Tag(""b"", b);", setter).Validator;
-            validator.ValidateTag("b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            var validator = SETestContext.CreateCS(@"var b = boolParameter; var tag = ""End"";", setter).Validator;
+            validator.ValidateTag("End", "b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void SimpleAssignment_ToLocalVariable_FromTrackedSymbol_VB()
         {
             var setter = new PreProcessTestCheck(OperationKind.ParameterReference, x => x.SetOperationConstraint(DummyConstraint.Dummy));
-            var validator = SETestContext.CreateVB(@"Dim B As Boolean = BoolParameter : Tag(""B"", B)", setter).Validator;
-            validator.ValidateTag("B", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            var validator = SETestContext.CreateVB(@"Dim B As Boolean = BoolParameter : Dim Tag As String = ""End""", setter).Validator;
+            validator.ValidateTag("End", "B", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [DataTestMethod]
-        [DataRow(@"Sample.StaticField = 42; Tag(""Target"", Sample.StaticField);", "SimpleAssignment: Sample.StaticField = 42")]
-        [DataRow(@"StaticField = 42; Tag(""Target"", StaticField);", "SimpleAssignment: StaticField = 42")]
-        [DataRow(@"field = 42; Tag(""Target"", field);", "SimpleAssignment: field = 42")]
-        [DataRow(@"this.field = 42; Tag(""Target"", this.field);", "SimpleAssignment: this.field = 42")]
-        [DataRow(@"field = 42; var a = field; Tag(""Target"", field);", "SimpleAssignment: a = field (Implicit)")]
-        public void SimpleAssignment_Fields(string snippet, string operation)
+        [DataRow(@"Sample.StaticField = 42; var tag = ""End"";", "StaticField", "SimpleAssignment: Sample.StaticField = 42")]
+        [DataRow(@"StaticField = 42; var tag = ""End"";", "StaticField", "SimpleAssignment: StaticField = 42")]
+        [DataRow(@"field = 42; var tag = ""End"";", "field", "SimpleAssignment: field = 42")]
+        [DataRow(@"this.field = 42; var tag = ""End"";", "field", "SimpleAssignment: this.field = 42")]
+        [DataRow(@"field = 42; var a = field; var tag = ""End"";", "field", "SimpleAssignment: a = field (Implicit)")]
+        public void SimpleAssignment_Fields(string snippet, string symbolName, string operation)
         {
             var validator = SETestContext.CreateCS(snippet, new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: 42", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
             validator.Validate(operation, x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("Target", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", symbolName, x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [DataTestMethod]
@@ -110,13 +111,13 @@ namespace SonarAnalyzer.UnitTest.SymbolicExecution.Roslyn
         {
             var validator = SETestContext.CreateCS(snippet, new LiteralDummyTestCheck()).Validator;
             validator.Validate("Literal: 42", x => x.State[x.Operation].HasConstraint(DummyConstraint.Dummy).Should().BeTrue("it's scaffolded"));
-            validator.ValidateTag("Target", x => (x?.HasConstraint(DummyConstraint.Dummy) ?? false).Should().BeFalse());
+            validator.ExitStates.Should().ContainSingle().Which.Should().Be(ProgramState.Empty);
         }
 
         [TestMethod]
         public void Conversion_ToLocalVariable_FromTrackedSymbol_ExplicitCast()
         {
-            var validator = SETestContext.CreateCS(@"int a = 42; byte b = (byte)a; var c = (byte)field; Tag(""b"", b); Tag(""c"", c);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"int a = 42; byte b = (byte)a; var c = (byte)field; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.ValidateOrder(
                 "LocalReference: a = 42 (Implicit)",
                 "Literal: 42",
@@ -130,57 +131,42 @@ namespace SonarAnalyzer.UnitTest.SymbolicExecution.Roslyn
                 "FieldReference: field",
                 "Conversion: (byte)field",
                 "SimpleAssignment: c = (byte)field (Implicit)",
-                "InstanceReference: Tag (Implicit)",
-                @"Literal: ""b""",
-                @"Argument: ""b""",
-                "LocalReference: b",
-                "Conversion: b (Implicit)",
-                "Argument: b",
-                @"Invocation: Tag(""b"", b)",
-                @"ExpressionStatement: Tag(""b"", b);",
-                "InstanceReference: Tag (Implicit)",
-                @"Literal: ""c""",
-                @"Argument: ""c""",
-                "LocalReference: c",
-                "Conversion: c (Implicit)",
-                "Argument: c",
-                @"Invocation: Tag(""c"", c)",
-                @"ExpressionStatement: Tag(""c"", c);");
-            validator.ValidateTag("b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
-            validator.ValidateTag("c", x => x.Should().BeNull());
+                @"LocalReference: tag = ""End"" (Implicit)",
+                @"Literal: ""End""",
+                @"SimpleAssignment: tag = ""End"" (Implicit)");
+            validator.ValidateTag("End", "b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("End", "c", x => x.Should().BeNull());
         }
 
         [TestMethod]
         public void Conversion_ToLocalVariable_FromLiteral_ImplicitCast()
         {
-            var validator = SETestContext.CreateCS(@"byte b = 42; Tag(""b"", b);", new LiteralDummyTestCheck()).Validator;
+            var validator = SETestContext.CreateCS(@"byte b = 42; var tag = ""End"";", new LiteralDummyTestCheck()).Validator;
             validator.ValidateOrder(
                 "LocalReference: b = 42 (Implicit)",
                 "Literal: 42",
                 "Conversion: 42 (Implicit)",
                 "SimpleAssignment: b = 42 (Implicit)",
-                "InstanceReference: Tag (Implicit)",
-                @"Literal: ""b""",
-                @"Argument: ""b""",
-                "LocalReference: b",
-                "Conversion: b (Implicit)",
-                "Argument: b",
-                @"Invocation: Tag(""b"", b)",
-                @"ExpressionStatement: Tag(""b"", b);");
-            validator.ValidateTag("b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+                @"LocalReference: tag = ""End"" (Implicit)",
+                @"Literal: ""End""",
+                @"SimpleAssignment: tag = ""End"" (Implicit)");
+                validator.ValidateTag("End", "b", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
         }
 
         [TestMethod]
         public void Argument_Ref_ResetsConstraints_CS() =>
-            SETestContext.CreateCS(@"var b = true; Main(boolParameter, ref b); Tag(""B"", b);", ", ref bool outParam").Validator.ValidateTag("B", x => x.Should().BeNull());
+            SETestContext.CreateCS(@"var b = true; Main(boolParameter, ref b); var tag = ""End"";", ", ref bool outParam").Validator
+                .ValidateTag("End", "b", x => x.Should().BeNull());
 
         [TestMethod]
         public void Argument_Out_ResetsConstraints_CS() =>
-            SETestContext.CreateCS(@"var b = true; Main(boolParameter, out b); Tag(""B"", b); outParam = false;", ", out bool outParam").Validator.ValidateTag("B", x => x.Should().BeNull());
+            SETestContext.CreateCS(@"var b = true; Main(boolParameter, out b); var tag = ""End""; outParam = false;", ", out bool outParam").Validator
+                .ValidateTag("End", "b", x => x.Should().BeNull());
 
         [TestMethod]
         public void Argument_ByRef_ResetConstraints_VB() =>
-            SETestContext.CreateVB(@"Dim B As Boolean = True : Main(BoolParameter, B) : Tag(""B"", B)", ", ByRef ByRefParam As Boolean").Validator.ValidateTag("B", x => x.Should().BeNull());
+            SETestContext.CreateVB(@"Dim B As Boolean = True : Main(BoolParameter, B) : Dim Tag As String = ""End""", ", ByRef ByRefParam As Boolean").Validator
+                .ValidateTag("End", "B", x => x.Should().BeNull());
 
         [TestMethod]
         public void Binary_BoolOperands_Equals_CS()

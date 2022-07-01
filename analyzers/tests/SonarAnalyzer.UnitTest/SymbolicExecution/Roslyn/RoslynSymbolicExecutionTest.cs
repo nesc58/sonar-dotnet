@@ -218,7 +218,7 @@ void LocalFunction()
         public void Execute_CheckProducesMoreStates_PreProcess()
         {
             var check = new PreProcessTestCheck(x => DecorateIntLiteral(x, TestConstraint.First, TestConstraint.Second));
-            SETestContext.CreateCS(@"var i = 42; Tag(""I"", i);", check).Validator.TagValues("I").Should()
+            SETestContext.CreateCS(@"var i = 42; var tag = ""I"";", check).Validator.TagValues("I", "i").Should()
                 .HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.Second));
@@ -228,7 +228,7 @@ void LocalFunction()
         public void Execute_CheckProducesMoreStates_PostProcess()
         {
             var check = new PostProcessTestCheck(x => DecorateIntLiteral(x, TestConstraint.First, TestConstraint.Second));
-            SETestContext.CreateCS(@"var i = 42; Tag(""I"", i);", check).Validator.TagValues("I").Should()
+            SETestContext.CreateCS(@"var i = 42; var tag = ""I"";", check).Validator.TagValues("I", "i").Should()
                 .HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.Second));
@@ -239,7 +239,7 @@ void LocalFunction()
         {
             var preProcess = new PreProcessTestCheck(x => DecorateIntLiteral(x, TestConstraint.First, TestConstraint.Second));
             var postProcess = new PostProcessTestCheck(x => DecorateIntLiteral(x, BoolConstraint.True, BoolConstraint.False));
-            SETestContext.CreateCS(@"var i = 42; Tag(""I"", i);", preProcess, postProcess).Validator.TagValues("I").Should()
+            SETestContext.CreateCS(@"var i = 42; var tag = ""I"";", preProcess, postProcess).Validator.TagValues("I", "i").Should()
                 .HaveCount(4)
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(TestConstraint.First) && x.HasConstraint(BoolConstraint.False))
@@ -279,7 +279,7 @@ Tag(""End"");";
 
         [TestMethod]
         public void Execute_LocalScopeRegion_AssignDefaultBoolConstraint() =>
-            SETestContext.CreateVB(@"Dim B As Boolean : Tag(""B"", B)").Validator.ValidateTag("B", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+            SETestContext.CreateVB(@"Dim B As Boolean : Dim Tag As String = ""B""").Validator.ValidateTag("B", "B", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
 
         [TestMethod]
         public void Execute_FieldSymbolsAreNotRemovedByLva()

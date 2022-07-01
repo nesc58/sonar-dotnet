@@ -105,19 +105,17 @@ var first = true;
 var second = false;
 if (boolParameter)
 {
-    Tag(""IfFirst"", first);
-    Tag(""IfSecond"", second);
+    var tag = ""If"";
 }
 else
 {
-    Tag(""ElseFirst"", first);
-    Tag(""ElseSecond"", second);
+    var tag = ""Else"";
 }";
             var validator = SETestContext.CreateCS(code).Validator;
-            validator.ValidateTag("IfFirst", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
-            validator.ValidateTag("IfSecond", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
-            validator.ValidateTag("ElseFirst", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
-            validator.ValidateTag("ElseSecond", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+            validator.ValidateTag("If", "first", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
+            validator.ValidateTag("If", "second", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+            validator.ValidateTag("Else", "first", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
+            validator.ValidateTag("Else", "second", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
         }
 
         [TestMethod]
@@ -218,10 +216,10 @@ else
 {
     value = false;
 }
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code, new PreserveTestCheck("value")).Validator;
             validator.ValidateExitReachCount(2); // Once with True constraint, once with False constraint on "value"
-            validator.TagValues("End").Should().HaveCount(2)
+            validator.TagValues("End", "value").Should().HaveCount(2)
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.True))
                 .And.ContainSingle(x => x.HasConstraint(BoolConstraint.False));
         }
@@ -239,10 +237,10 @@ else
 {
     value = true;
 }
-Tag(""End"", value);";
+var tag = ""End"";";
             var validator = SETestContext.CreateCS(code).Validator;
             validator.ValidateExitReachCount(1);
-            validator.TagValues("End").Should().HaveCount(1).And.ContainSingle(x => x.HasConstraint(BoolConstraint.True));
+            validator.TagValues("End", "value").Should().HaveCount(1).And.ContainSingle(x => x.HasConstraint(BoolConstraint.True));
         }
 
         [TestMethod]
@@ -280,20 +278,20 @@ var value = true;
 if (boolParameter)
 {
     value.ToString();
-    Tag(""ToString"", value);
+    var tag = ""ToString"";
 }
 else
 {
     value.GetHashCode();    // Another invocation to have same instruction count in both branches
-    Tag(""GetHashCode"", value);
+    var tag = ""GetHashCode"";
 }";
             var postProcess = new PostProcessTestCheck(x =>
                 x.Operation.Instance is IInvocationOperation { TargetMethod: { Name: "ToString" } } invocation
                     ? x.SetSymbolConstraint(invocation.Instance.TrackedSymbol(), TestConstraint.First)
                     : x.State);
             var validator = SETestContext.CreateCS(code, postProcess).Validator;
-            validator.ValidateTag("ToString", x => x.HasConstraint(TestConstraint.First).Should().BeTrue());
-            validator.ValidateTag("GetHashCode", x => x.HasConstraint(TestConstraint.First).Should().BeFalse()); // Nobody set the constraint on that path
+            validator.ValidateTag("ToString", "value", x => x.HasConstraint(TestConstraint.First).Should().BeTrue());
+            validator.ValidateTag("GetHashCode", "value", x => x.HasConstraint(TestConstraint.First).Should().BeFalse()); // Nobody set the constraint on that path
             validator.ValidateExitReachCount(1);    // Once as the states are cleaned by LVA.
         }
 
@@ -488,56 +486,63 @@ Tag(""End"");";
         public void Branching_BoolSymbol_LearnsBoolConstraint()
         {
             const string code = @"
+var tag = ""Begin"";
 if (boolParameter)          // True constraint is learned
 {
-    Tag(""True"", boolParameter);
+    tag = ""True"";
     if (boolParameter)      // True constraint is known
     {
-        Tag(""TrueTrue"");
+        tag = ""TrueTrue"";
     }
     else
     {
-        Tag(""TrueFalse Unreachable"");
+        tag = ""TrueFalse Unreachable"";
     }
 }
 else                        // False constraint is learned
 {
-    Tag(""False"", boolParameter);
+    tag = ""False"";
     if (boolParameter)      // False constraint is known
     {
-        Tag(""FalseTrue Unreachable"");
+        tag = ""FalseTrue Unreachable"";
     }
     else
     {
-        Tag(""FalseFalse"");
+        tag = ""FalseFalse"";
     }
 };
-Tag(""End"");";
+tag = ""End"";";
             var validator = SETestContext.CreateCS(code).Validator;
             validator.ValidateTagOrder(
+                "Begin",
                 "True",
                 "False",
                 "TrueTrue",
                 "FalseFalse",
+                "End",
                 "End");
-            validator.ValidateTag("True", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
-            validator.ValidateTag("False", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+            validator.ValidateTag("True", "boolParameter", x => x.HasConstraint(BoolConstraint.True).Should().BeTrue());
+            validator.ValidateTag("False", "boolParameter", x => x.HasConstraint(BoolConstraint.False).Should().BeTrue());
+            validator.TagStates("End").Should().HaveCount(2)
+                .And.ContainSingle(x => x.SymbolsWith(BoolConstraint.True).Count() == 1)
+                .And.ContainSingle(x => x.SymbolsWith(BoolConstraint.False).Count() == 1);
         }
 
         [TestMethod]
         public void Branching_BoolOperation_LearnsBoolConstraint()
         {
             const string code = @"
+string tag;
 if (collection.IsReadOnly)
 {
-    Tag(""If"", collection);
+    tag = ""If"";
 }
-Tag(""End"", collection);";
+tag = ""End"";";
             var check = new ConditionEvaluatedTestCheck(x => x.State[x.Operation].HasConstraint(BoolConstraint.True)
                                                                  ? x.SetSymbolConstraint(x.Operation.Instance.AsPropertyReference().Value.Instance.TrackedSymbol(), DummyConstraint.Dummy)
                                                                  : x.State);
             var validator = SETestContext.CreateCS(code, ", ICollection<object> collection", check).Validator;
-            validator.ValidateTag("If", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
+            validator.ValidateTag("If", "collection", x => x.HasConstraint(DummyConstraint.Dummy).Should().BeTrue());
             validator.TagStates("End").Should().HaveCount(2);
         }
 
@@ -547,16 +552,16 @@ Tag(""End"", collection);";
             const string code = @"
 if (boolParameter == true)
 {
-    Tag(""BoolParameter"", boolParameter);
+    var tag = ""BoolParameter"";
 }
 bool value;
 if (value = boolParameter)
 {
-    Tag(""Value"", value);
+    var tag = ""Value"";
 }";
             var validator = SETestContext.CreateCS(code).Validator;
-            validator.ValidateTag("BoolParameter", x => x.Should().BeNull());
-            validator.ValidateTag("Value", x => x.Should().BeNull());
+            validator.ValidateTag("BoolParameter", "boolParameter", x => x.Should().BeNull());
+            validator.ValidateTag("Value", "value", x => x.Should().BeNull());
         }
 
         [TestMethod]
