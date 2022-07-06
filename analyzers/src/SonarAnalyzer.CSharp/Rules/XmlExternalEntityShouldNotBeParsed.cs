@@ -83,7 +83,6 @@ namespace SonarAnalyzer.Rules.CSharp
                         c =>
                         {
                             var assignment = (AssignmentExpressionSyntax)c.Node;
-
                             var trackers = TrackerFactory.Create();
                             if (trackers.XmlDocumentTracker.ShouldBeReported(assignment, c.SemanticModel)
                                || trackers.XmlTextReaderTracker.ShouldBeReported(assignment, c.SemanticModel))

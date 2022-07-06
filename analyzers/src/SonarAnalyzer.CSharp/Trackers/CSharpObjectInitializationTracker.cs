@@ -27,6 +27,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using SonarAnalyzer.Extensions;
 using SonarAnalyzer.Wrappers;
+using StyleCop.Analyzers.Lightup;
 
 namespace SonarAnalyzer.Helpers.Trackers
 {
@@ -88,12 +89,31 @@ namespace SonarAnalyzer.Helpers.Trackers
             && !ObjectCreatedWithAllowedValue(objectCreation, semanticModel, isDefaultConstructorSafe)
             && !IsLaterAssignedWithAllowedValue(objectCreation, semanticModel);
 
-        internal bool ShouldBeReported(AssignmentExpressionSyntax assignment, SemanticModel semanticModel) =>
+        internal bool ShouldBeReported1(AssignmentExpressionSyntax assignment, SemanticModel semanticModel) =>
             // Ignore assignments within object initializers, they are reported in the ObjectCreationExpression handler
             assignment.FirstAncestorOrSelf<InitializerExpressionSyntax>() == null
             && IsTrackedPropertyName(assignment.Left)
             && IsPropertyOnTrackedType(assignment.Left, semanticModel)
             && !IsAllowedValue(assignment.Right, semanticModel);
+
+        internal bool ShouldBeReported(AssignmentExpressionSyntax assignment, SemanticModel semanticModel)
+        {
+            if (TupleExpressionSyntaxWrapper.IsInstance(assignment.Left)
+                || TupleExpressionSyntaxWrapper.IsInstance(assignment.Right))
+            {
+                return assignment.MapAssignmentArguments().FirstOrDefault(x => IsTrackedPropertyName((ExpressionSyntax)x.Left)
+                                                                        && IsPropertyOnTrackedType((ExpressionSyntax)x.Left, semanticModel)
+                                                                        && !IsAllowedValue((ExpressionSyntax)x.Right, semanticModel)) is { };
+            }
+            else
+            {
+                // Ignore assignments within object initializers, they are reported in the ObjectCreationExpression handler
+                return assignment.FirstAncestorOrSelf<InitializerExpressionSyntax>() == null
+                       && IsTrackedPropertyName(assignment.Left)
+                       && IsPropertyOnTrackedType(assignment.Left, semanticModel)
+                       && !IsAllowedValue(assignment.Right, semanticModel);
+            }
+        }
 
         /// <summary>
         /// Tests if the provided <paramref name="constantValue"/> is equal to an allowed constant (literal) value.
